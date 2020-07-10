@@ -185,6 +185,7 @@ void opencl_mult_matrices() {
         return;
     }
 
+    cl_device_id discrete_gpu = nullptr;
     cl_device_id gpu = nullptr;
     cl_device_id cpu = nullptr;
     cl_device_id device;
@@ -198,14 +199,22 @@ void opencl_mult_matrices() {
             cpus = (cl_device_id *) malloc(sizeof(cl_device_id) * cpuCount);
             clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_CPU, gpuCount, cpus, NULL);
 
-            if (gpuCount > 0) {
+            if (gpuCount > 0 && discrete_gpu == nullptr) {
                 gpu = gpus[0];
+                for (int j = 0; j < gpuCount; ++j) {
+                    cl_bool has_unified_memory;
+                    clGetDeviceInfo(gpus[j], CL_DEVICE_HOST_UNIFIED_MEMORY, sizeof(cl_bool), &has_unified_memory, NULL);
+                    if (has_unified_memory == CL_FALSE) {
+                        discrete_gpu = gpus[j];
+                        break;
+                    }
+                }
             }
-            if (cpuCount > 0) {
+            if (cpu == nullptr && cpuCount > 0) {
                 cpu = cpus[0];
             }
         }
-        device = (gpu) ? gpu : cpu;
+        device = (discrete_gpu) ? discrete_gpu : ((gpu) ? gpu : cpu);
         print_device_info(device);
         auto context =
                 clCreateContext(NULL, 1, &device, NULL, NULL, &error_code);
